@@ -93,8 +93,14 @@ export default function App() {
   // Seed database & local admin login initialization
   useEffect(() => {
     const initApp = async () => {
-      // 1. Seed database with default Iraqi products/settings if empty
-      await seedDatabaseIfEmpty();
+      try {
+        // Run seedDatabaseIfEmpty with a 1500ms timeout so it never blocks the app boot
+        const seedPromise = seedDatabaseIfEmpty();
+        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 1500));
+        await Promise.race([seedPromise, timeoutPromise]);
+      } catch (err) {
+        console.error("Database seeding failed or timed out: ", err);
+      }
 
       // Local system does not require first-time setup registration
       setIsFirstTimeSetup(false);

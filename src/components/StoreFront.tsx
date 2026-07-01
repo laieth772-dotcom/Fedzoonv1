@@ -28,7 +28,7 @@ import {
   updateDoc, 
   increment 
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, DEFAULT_SETTINGS, DEFAULT_PRODUCTS } from "../firebase";
 import { Product, Order, Coupon, Settings, CartItem, OrderStatus } from "../types";
 
 interface StoreFrontProps {
@@ -110,31 +110,72 @@ export default function StoreFront({ darkMode, onAdminLoginClick }: StoreFrontPr
     const fetchStoreData = async () => {
       try {
         setLoading(true);
-        // Products
-        const prodSnap = await getDocs(collection(db, "products"));
-        const prodList: Product[] = [];
-        prodSnap.forEach((docSnap) => {
-          prodList.push({ id: docSnap.id, ...docSnap.data() } as Product);
-        });
-        setProducts(prodList);
-        setFilteredProducts(prodList);
 
-        // Settings
-        const settingsDoc = await getDoc(doc(db, "settings", "general"));
-        if (settingsDoc.exists()) {
-          const fetchedSettings = settingsDoc.data() as Settings;
-          setSettings(fetchedSettings);
-          // Set default selected method based on what is enabled
-          if (fetchedSettings.enableCart) {
-            setSelectedOrderMethod("Cart");
-          } else if (fetchedSettings.enableWhatsApp) {
-            setSelectedOrderMethod("WhatsApp");
-          } else if (fetchedSettings.enableTikTok) {
-            setSelectedOrderMethod("TikTok");
+        // Define a helper to run with a timeout
+        const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, defaultValue: T): Promise<T> => {
+          let timeoutId: any;
+          const timeoutPromise = new Promise<T>((resolve) => {
+            timeoutId = setTimeout(() => {
+              console.warn("Operation timed out, returning fallback defaults");
+              resolve(defaultValue);
+            }, timeoutMs);
+          });
+          try {
+            const res = await Promise.race([promise, timeoutPromise]);
+            clearTimeout(timeoutId);
+            return res;
+          } catch (e) {
+            clearTimeout(timeoutId);
+            console.error("Operation failed, returning fallback defaults: ", e);
+            return defaultValue;
           }
+        };
+
+        // Products fetch with timeout
+        const prodPromise = (async () => {
+          const prodSnap = await getDocs(collection(db, "products"));
+          const prodList: Product[] = [];
+          prodSnap.forEach((docSnap) => {
+            prodList.push({ id: docSnap.id, ...docSnap.data() } as Product);
+          });
+          return prodList;
+        })();
+
+        const productsResult = await withTimeout<Product[]>(prodPromise, 2500, []);
+        
+        // If results are empty (timed out, failed, or actually empty), use default products as fallback
+        const finalProducts = productsResult.length > 0 ? productsResult : DEFAULT_PRODUCTS;
+        setProducts(finalProducts);
+        setFilteredProducts(finalProducts);
+
+        // Settings fetch with timeout
+        const settingsPromise = (async () => {
+          const settingsDoc = await getDoc(doc(db, "settings", "general"));
+          if (settingsDoc.exists()) {
+            return settingsDoc.data() as Settings;
+          }
+          return null;
+        })();
+
+        const settingsResult = await withTimeout<Settings | null>(settingsPromise, 2500, null);
+        const finalSettings = settingsResult || DEFAULT_SETTINGS;
+        setSettings(finalSettings);
+
+        // Set default selected method based on what is enabled
+        if (finalSettings.enableCart) {
+          setSelectedOrderMethod("Cart");
+        } else if (finalSettings.enableWhatsApp) {
+          setSelectedOrderMethod("WhatsApp");
+        } else if (finalSettings.enableTikTok) {
+          setSelectedOrderMethod("TikTok");
         }
+
       } catch (err) {
         console.error("Error loading storefront data: ", err);
+        // Fallback safety net
+        setProducts(DEFAULT_PRODUCTS);
+        setFilteredProducts(DEFAULT_PRODUCTS);
+        setSettings(DEFAULT_SETTINGS);
       } finally {
         setLoading(false);
       }

@@ -306,9 +306,13 @@ export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardPro
 
     // 4. Fetch general Settings
     const fetchSettings = async () => {
-      const docSnap = await getDoc(doc(db, "settings", "general"));
-      if (docSnap.exists()) {
-        setSettings(docSnap.data() as Settings);
+      try {
+        const docSnap = await getDoc(doc(db, "settings", "general"));
+        if (docSnap.exists()) {
+          setSettings(docSnap.data() as Settings);
+        }
+      } catch (err) {
+        console.error("Error fetching general settings in admin dashboard:", err);
       }
     };
     fetchSettings();
