@@ -195,8 +195,33 @@ export default function App() {
         alert("تمت تهيئة حساب المدير بنجاح وتسجيل الدخول!");
       } else {
         // Sign In Admin
-        await signInWithEmailAndPassword(auth, "Laieth772@gmail.com", adminPassword);
-        setAdminPassword("");
+        try {
+          await signInWithEmailAndPassword(auth, "Laieth772@gmail.com", adminPassword);
+          setAdminPassword("");
+        } catch (signInErr: any) {
+          console.log("Sign-in failed, checking if user needs to be registered...", signInErr);
+          // If the user doesn't exist in Auth yet, register them on-the-fly!
+          if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential") {
+            try {
+              await createUserWithEmailAndPassword(auth, "Laieth772@gmail.com", adminPassword);
+              await updateDoc(doc(db, "settings", "general"), {
+                adminRegistered: true
+              });
+              setIsFirstTimeSetup(false);
+              setAdminPassword("");
+              alert("تم تسجيل حساب المدير وتعيين كلمة المرور بنجاح!");
+              return;
+            } catch (signUpErr: any) {
+              if (signUpErr.code === "auth/email-already-in-use") {
+                throw signInErr; // Re-throw original wrong password error
+              } else {
+                throw signUpErr;
+              }
+            }
+          } else {
+            throw signInErr;
+          }
+        }
       }
     } catch (err: any) {
       console.error("Auth action failed: ", err);
