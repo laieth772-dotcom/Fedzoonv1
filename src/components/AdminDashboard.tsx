@@ -86,9 +86,10 @@ function playNotificationSound() {
 
 interface AdminDashboardProps {
   darkMode: boolean;
+  onLogout?: () => void;
 }
 
-export default function AdminDashboard({ darkMode }: AdminDashboardProps) {
+export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardProps) {
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<"orders" | "products" | "coupons" | "settings" | "customers">("orders");
 
@@ -210,24 +211,15 @@ export default function AdminDashboard({ darkMode }: AdminDashboardProps) {
       return;
     }
 
-    if (!auth.currentUser) {
-      setPasswordChangeError("لم يتم العثور على مستخدم تسجيل الدخول الحالي.");
-      return;
-    }
-
     setPasswordChangeLoading(true);
     try {
-      await updatePassword(auth.currentUser, newPassword);
-      setPasswordChangeSuccess("تم تحديث كلمة المرور بنجاح!");
+      localStorage.setItem("fad_zone_admin_custom_password", newPassword);
+      setPasswordChangeSuccess("تم تحديث كلمة المرور المحلية للإدارة بنجاح!");
       setNewPassword("");
       setConfirmNewPassword("");
     } catch (err: any) {
-      console.error("Error updating password: ", err);
-      if (err.code === "auth/requires-recent-login") {
-        setPasswordChangeError("لأسباب أمنية، يرجى تسجيل الخروج ثم تسجيل الدخول مرة أخرى لتغيير كلمة المرور.");
-      } else {
-        setPasswordChangeError("حدث خطأ أثناء تغيير كلمة المرور: " + (err.message || "فشل غير معروف."));
-      }
+      console.error("Error updating local password: ", err);
+      setPasswordChangeError("حدث خطأ أثناء حفظ كلمة المرور المحلية.");
     } finally {
       setPasswordChangeLoading(false);
     }
@@ -329,7 +321,11 @@ export default function AdminDashboard({ darkMode }: AdminDashboardProps) {
   }, [soundEnabled]);
 
   const handleLogout = async () => {
-    await signOut(auth);
+    if (onLogout) {
+      onLogout();
+    } else {
+      await signOut(auth);
+    }
   };
 
   // Sound manual trigger test

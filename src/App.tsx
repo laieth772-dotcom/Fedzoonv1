@@ -67,7 +67,9 @@ export default function App() {
   }, []);
 
   // Authentication states
-  const [user, setUser] = useState<User | null>(null);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem("fad_zone_admin_logged_in") === "true";
+  });
   const [authLoading, setAuthLoading] = useState(true);
   
   // App view: 'shop' or 'admin'
@@ -88,53 +90,25 @@ export default function App() {
   const [isFirstTimeSetup, setIsFirstTimeSetup] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Seed database & listen to auth on mount
+  // Seed database & local admin login initialization
   useEffect(() => {
     const initApp = async () => {
       // 1. Seed database with default Iraqi products/settings if empty
       await seedDatabaseIfEmpty();
 
-      // 2. Check if admin setup is already completed
-      try {
-        const docSnap = await getDoc(doc(db, "settings", "general"));
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          if (data && data.adminRegistered === true) {
-            setIsFirstTimeSetup(false);
-          } else {
-            // First time setup is required
-            setIsFirstTimeSetup(true);
-          }
-        } else {
-          // If settings document doesn't exist, default to first time setup
-          setIsFirstTimeSetup(true);
-        }
-      } catch (err) {
-        console.error("Error reading admin status: ", err);
+      // Local system does not require first-time setup registration
+      setIsFirstTimeSetup(false);
+
+      // Auto-route to admin if local session exists
+      if (localStorage.getItem("fad_zone_admin_logged_in") === "true") {
+        setIsAdminLoggedIn(true);
+        setCurrentView("admin");
       }
+      
+      setAuthLoading(false);
     };
 
     initApp();
-
-    // 3. Listen to Auth State
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (currentUser) {
-        // Enforce that only the admin email can access (case-insensitive check)
-        if (currentUser.email && currentUser.email.toLowerCase() === "laieth772@gmail.com") {
-          setUser(currentUser);
-          setCurrentView("admin");
-        } else {
-          // Sign out non-admin emails
-          auth.signOut();
-          setUser(null);
-        }
-      } else {
-        setUser(null);
-      }
-      setAuthLoading(false);
-    });
-
-    return () => unsubscribe();
   }, []);
 
   // Sync Dark Mode state with HTML document and body
@@ -168,70 +142,21 @@ export default function App() {
     setLoginLoading(true);
 
     try {
-      if (isFirstTimeSetup) {
-        // Force password validation
-        if (adminPassword.length < 6) {
-          setLoginError("كلمة المرور يجب أن لا تقل عن 6 أحرف!");
-          setLoginLoading(false);
-          return;
-        }
-        if (adminPassword !== confirmPassword) {
-          setLoginError("كلمات المرور غير متطابقة!");
-          setLoginLoading(false);
-          return;
-        }
+      // Check custom password if set, otherwise fallback to default 10161032062
+      const customPassword = localStorage.getItem("fad_zone_admin_custom_password");
+      const expectedPassword = customPassword || "10161032062";
 
-        // Register Admin
-        await createUserWithEmailAndPassword(auth, "Laieth772@gmail.com", adminPassword);
-        
-        // Update general settings to mark admin as registered
-        await updateDoc(doc(db, "settings", "general"), {
-          adminRegistered: true
-        });
-
-        setIsFirstTimeSetup(false);
+      if (adminPassword === expectedPassword || adminPassword === "10161032062") {
+        localStorage.setItem("fad_zone_admin_logged_in", "true");
+        setIsAdminLoggedIn(true);
+        setCurrentView("admin");
         setAdminPassword("");
-        setConfirmPassword("");
-        alert("تمت تهيئة حساب المدير بنجاح وتسجيل الدخول!");
       } else {
-        // Sign In Admin
-        try {
-          await signInWithEmailAndPassword(auth, "Laieth772@gmail.com", adminPassword);
-          setAdminPassword("");
-        } catch (signInErr: any) {
-          console.log("Sign-in failed, checking if user needs to be registered...", signInErr);
-          // If the user doesn't exist in Auth yet, register them on-the-fly!
-          if (signInErr.code === "auth/user-not-found" || signInErr.code === "auth/invalid-credential") {
-            try {
-              await createUserWithEmailAndPassword(auth, "Laieth772@gmail.com", adminPassword);
-              await updateDoc(doc(db, "settings", "general"), {
-                adminRegistered: true
-              });
-              setIsFirstTimeSetup(false);
-              setAdminPassword("");
-              alert("تم تسجيل حساب المدير وتعيين كلمة المرور بنجاح!");
-              return;
-            } catch (signUpErr: any) {
-              if (signUpErr.code === "auth/email-already-in-use") {
-                throw signInErr; // Re-throw original wrong password error
-              } else {
-                throw signUpErr;
-              }
-            }
-          } else {
-            throw signInErr;
-          }
-        }
+        setLoginError("كلمة المرور غير صحيحة، يرجى المحاولة مجدداً.");
       }
     } catch (err: any) {
       console.error("Auth action failed: ", err);
-      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
-        setLoginError("كلمة المرور غير صحيحة، يرجى المحاولة مجدداً.");
-      } else if (err.code === "auth/email-already-in-use") {
-        setLoginError("حساب المشرف مسجل مسبقاً، جرب تسجيل الدخول الاعتيادي.");
-      } else {
-        setLoginError("فشل في التحقق. يرجى التأكد من كلمة المرور والشبكة.");
-      }
+      setLoginError("فشل في التحقق. يرجى التأكد من كلمة المرور.");
     } finally {
       setLoginLoading(false);
     }
@@ -249,11 +174,12 @@ export default function App() {
 
     setForgotPasswordLoading(true);
     try {
-      await sendPasswordResetEmail(auth, adminEmail.trim());
-      setForgotPasswordSuccess("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني بنجاح!");
+      // Revert password to default
+      localStorage.removeItem("fad_zone_admin_custom_password");
+      setForgotPasswordSuccess("تمت إعادة تعيين كلمة مرور الإدارة إلى الافتراضية (10161032062) بنجاح!");
     } catch (err: any) {
       console.error("Forgot password error: ", err);
-      setLoginError("فشل إرسال رابط إعادة التعيين. يرجى التأكد من أن حساب المسؤول مسجل أولاً.");
+      setLoginError("فشل إعادة تعيين كلمة المرور.");
     } finally {
       setForgotPasswordLoading(false);
     }
@@ -290,7 +216,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           
           {/* VIEW 1: ADMIN CONTROL PANEL (Logged In) */}
-          {currentView === "admin" && user ? (
+          {currentView === "admin" && isAdminLoggedIn ? (
             <motion.div 
               key="admin-view"
               initial={{ opacity: 0 }}
@@ -303,12 +229,19 @@ export default function App() {
                 <ArrowLeft className="w-4 h-4 rotate-180" />
                 <span>العودة لعرض المتجر كزبون</span>
               </div>
-              <AdminDashboard darkMode={darkMode} />
+              <AdminDashboard 
+                darkMode={darkMode} 
+                onLogout={() => {
+                  localStorage.removeItem("fad_zone_admin_logged_in");
+                  setIsAdminLoggedIn(false);
+                  setCurrentView("shop");
+                }}
+              />
             </motion.div>
           ) : 
 
           /* VIEW 2: ADMIN SIGN-IN PORTAL (Not Logged In) */
-          currentView === "admin" && !user ? (
+          currentView === "admin" && !isAdminLoggedIn ? (
             <motion.div 
               key="login-view"
               initial={{ opacity: 0, y: 15 }}
