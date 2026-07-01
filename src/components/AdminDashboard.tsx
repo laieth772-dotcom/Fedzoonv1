@@ -588,6 +588,16 @@ export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardPro
     setIsProductModalOpen(true);
   };
 
+  const cleanObject = (obj: any): any => {
+    const result: any = {};
+    Object.keys(obj).forEach((key) => {
+      if (obj[key] !== undefined) {
+        result[key] = obj[key];
+      }
+    });
+    return result;
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodTitle.trim() || !prodPrice || !prodDesc.trim() || !prodStock || prodImages.length === 0) {
@@ -597,7 +607,7 @@ export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardPro
 
     setIsSubmittingProduct(true);
     const id = editingProduct ? editingProduct.id : `prod-${Date.now()}`;
-    const productData: Product = {
+    const productData = cleanObject({
       id,
       title: prodTitle.trim(),
       price: Number(prodPrice),
@@ -609,15 +619,16 @@ export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardPro
       isFeatured: prodIsFeatured,
       isDisabled: prodIsDisabled,
       createdAt: editingProduct ? editingProduct.createdAt : new Date().toISOString()
-    };
+    });
 
     try {
+      console.log("Saving product data to Firestore: ", productData);
       await setDoc(doc(db, "products", id), productData);
       setIsProductModalOpen(false);
       alert(editingProduct ? "تم تحديث المنتج بنجاح!" : "تمت إضافة المنتج الجديد للمتجر بنجاح!");
-    } catch (err) {
-      console.error("Error saving product: ", err);
-      alert("حدث خطأ أثناء حفظ المنتج.");
+    } catch (err: any) {
+      console.error("CRITICAL ERROR saving product to Firestore: ", err);
+      alert("حدث خطأ أثناء حفظ المنتج: " + (err.message || "فشل الاتصال بقاعدة البيانات."));
     } finally {
       setIsSubmittingProduct(false);
     }
@@ -626,28 +637,30 @@ export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardPro
   const handleDuplicateProduct = async (product: Product) => {
     try {
       const newId = `prod-${Date.now()}`;
-      const duplicatedProduct: Product = {
+      const duplicatedProduct = cleanObject({
         ...product,
         id: newId,
         title: `${product.title} (نسخة)`,
         createdAt: new Date().toISOString()
-      };
+      });
+      console.log("Duplicating product in Firestore: ", duplicatedProduct);
       await setDoc(doc(db, "products", newId), duplicatedProduct);
       alert(`تم تكرار المنتج "${product.title}" بنجاح!`);
-    } catch (err) {
-      console.error("Error duplicating product: ", err);
-      alert("حدث خطأ أثناء تكرار المنتج.");
+    } catch (err: any) {
+      console.error("CRITICAL ERROR duplicating product in Firestore: ", err);
+      alert("حدث خطأ أثناء تكرار المنتج: " + (err.message || "فشل الاتصال بقاعدة البيانات."));
     }
   };
 
   const handleDeleteProduct = async (productId: string) => {
     if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا المنتج من المتجر نهائياً؟")) return;
     try {
+      console.log("Deleting product from Firestore: ", productId);
       await deleteDoc(doc(db, "products", productId));
       alert("تم حذف المنتج من المتجر بنجاح.");
-    } catch (err) {
-      console.error("Error deleting product: ", err);
-      alert("حدث خطأ أثناء حذف المنتج.");
+    } catch (err: any) {
+      console.error("CRITICAL ERROR deleting product from Firestore: ", err);
+      alert("حدث خطأ أثناء حذف المنتج: " + (err.message || "فشل الاتصال بقاعدة البيانات."));
     }
   };
 
