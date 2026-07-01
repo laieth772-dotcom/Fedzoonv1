@@ -91,6 +91,24 @@ export default function App() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Seed database & local admin login initialization
+  const ensureFirebaseAuthSilently = async () => {
+    const customPassword = localStorage.getItem("fad_zone_admin_custom_password") || "10161032062";
+    try {
+      await signInWithEmailAndPassword(auth, "Laieth772@gmail.com", customPassword);
+      console.log("Silent Firebase Auth sign-in succeeded!");
+    } catch (err: any) {
+      console.warn("Silent Firebase Auth sign-in failed, attempting to register administrator: ", err);
+      if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        try {
+          await createUserWithEmailAndPassword(auth, "Laieth772@gmail.com", customPassword);
+          console.log("Silent Firebase Auth administrator registered successfully!");
+        } catch (regErr) {
+          console.error("Silent Firebase Auth registration error: ", regErr);
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     const initApp = async () => {
       try {
@@ -109,6 +127,7 @@ export default function App() {
       if (localStorage.getItem("fad_zone_admin_logged_in") === "true") {
         setIsAdminLoggedIn(true);
         setCurrentView("admin");
+        ensureFirebaseAuthSilently();
       }
       
       setAuthLoading(false);
@@ -157,6 +176,7 @@ export default function App() {
         setIsAdminLoggedIn(true);
         setCurrentView("admin");
         setAdminPassword("");
+        ensureFirebaseAuthSilently();
       } else {
         setLoginError("كلمة المرور غير صحيحة، يرجى المحاولة مجدداً.");
       }

@@ -214,12 +214,20 @@ export default function AdminDashboard({ darkMode, onLogout }: AdminDashboardPro
     setPasswordChangeLoading(true);
     try {
       localStorage.setItem("fad_zone_admin_custom_password", newPassword);
-      setPasswordChangeSuccess("تم تحديث كلمة المرور المحلية للإدارة بنجاح!");
+      if (auth.currentUser) {
+        try {
+          await updatePassword(auth.currentUser, newPassword);
+          console.log("Firebase Auth password successfully synchronized.");
+        } catch (authErr: any) {
+          console.warn("Could not sync password to Firebase Auth immediately (requires recent login or offline):", authErr);
+        }
+      }
+      setPasswordChangeSuccess("تم تحديث كلمة المرور للإدارة بنجاح!");
       setNewPassword("");
       setConfirmNewPassword("");
     } catch (err: any) {
-      console.error("Error updating local password: ", err);
-      setPasswordChangeError("حدث خطأ أثناء حفظ كلمة المرور المحلية.");
+      console.error("Error updating password: ", err);
+      setPasswordChangeError("حدث خطأ أثناء حفظ كلمة المرور.");
     } finally {
       setPasswordChangeLoading(false);
     }

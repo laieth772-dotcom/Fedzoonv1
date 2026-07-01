@@ -143,10 +143,9 @@ export default function StoreFront({ darkMode, onAdminLoginClick }: StoreFrontPr
 
         const productsResult = await withTimeout<Product[]>(prodPromise, 2500, []);
         
-        // If results are empty (timed out, failed, or actually empty), use default products as fallback
-        const finalProducts = productsResult.length > 0 ? productsResult : DEFAULT_PRODUCTS;
-        setProducts(finalProducts);
-        setFilteredProducts(finalProducts);
+        // Products must ONLY come from the database. No frontend hardcoded fallback!
+        setProducts(productsResult);
+        setFilteredProducts(productsResult);
 
         // Settings fetch with timeout
         const settingsPromise = (async () => {
@@ -172,9 +171,9 @@ export default function StoreFront({ darkMode, onAdminLoginClick }: StoreFrontPr
 
       } catch (err) {
         console.error("Error loading storefront data: ", err);
-        // Fallback safety net
-        setProducts(DEFAULT_PRODUCTS);
-        setFilteredProducts(DEFAULT_PRODUCTS);
+        // Fallback safety net is empty state, not hardcoded products
+        setProducts([]);
+        setFilteredProducts([]);
         setSettings(DEFAULT_SETTINGS);
       } finally {
         setLoading(false);
