@@ -1,0 +1,6 @@
+{
+  "name": "Fad Zone",
+  "description": "Advanced eCommerce platform in Arabic, fully integrated with Firebase for management of products, orders, coupons, settings, and interactive checkouts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

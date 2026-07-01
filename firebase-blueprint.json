@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "GeneralSettings": {
+      "title": "General Settings",
+      "description": "General settings for store operations and social accounts",
+      "type": "object",
+      "properties": {
+        "whatsappNumber": { "type": "string" },
+        "tiktokLink": { "type": "string" },
+        "enableCart": { "type": "boolean" },
+        "enableWhatsApp": { "type": "boolean" },
+        "enableTikTok": { "type": "boolean" },
+        "adminRegistered": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["whatsappNumber", "tiktokLink", "enableCart", "enableWhatsApp", "enableTikTok", "updatedAt"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Discount coupons code details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "type": { "type": "string", "enum": ["percentage", "fixed"] },
+        "value": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "code", "type", "value", "isActive", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "eCommerce product items listed for sale",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "stock": { "type": "number" },
+        "images": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "price", "description", "category", "stock", "images", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Store orders placed by customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "customerAddress": { "type": "string" },
+        "items": { "type": "array" },
+        "couponApplied": { "type": "string" },
+        "discountAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Pending", "Processing", "Shipped", "Delivered"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "customerName", "customerPhone", "customerAddress", "items", "discountAmount", "totalAmount", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "settings/general": {
+      "schema": "GeneralSettings",
+      "description": "Global store toggle configurations and social targets"
+    },
+    "coupons/{couponId}": {
+      "schema": "Coupon",
+      "description": "Promotional codes to offer customers flat or percentage discounts"
+    },
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "Catalog of items with descriptions, images, category tags and stocks"
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer purchase items, shipment tracking state and contact details"
+    }
+  }
+}
