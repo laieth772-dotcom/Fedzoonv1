@@ -47,6 +47,7 @@ import {
 import { signOut, updatePassword } from "firebase/auth";
 import { auth, db } from "../firebase";
 import { Product, Order, Coupon, Settings, OrderStatus } from "../types";
+import { compressImage } from "../utils/image";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -525,16 +526,22 @@ export default function AdminDashboard({ darkMode }: AdminDashboardProps) {
     }
   };
 
-  // Image addition helper (Local File to Base64)
+  // Image addition helper (Local File to Base64 with compression)
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
+      reader.onloadend = async () => {
         if (typeof reader.result === "string") {
-          setProdImages(prev => [...prev, reader.result as string]);
+          try {
+            const compressed = await compressImage(reader.result, 800, 800, 0.75);
+            setProdImages(prev => [...prev, compressed]);
+          } catch (err) {
+            console.error("Image compression failed, using original: ", err);
+            setProdImages(prev => [...prev, reader.result as string]);
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -1448,9 +1455,14 @@ export default function AdminDashboard({ darkMode }: AdminDashboardProps) {
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     const reader = new FileReader();
-                                    reader.onloadend = () => {
+                                    reader.onloadend = async () => {
                                       if (typeof reader.result === "string") {
-                                        setSettings({ ...settings, storeLogo: reader.result });
+                                        try {
+                                          const compressed = await compressImage(reader.result, 400, 400, 0.8);
+                                          setSettings({ ...settings, storeLogo: compressed });
+                                        } catch (err) {
+                                          setSettings({ ...settings, storeLogo: reader.result });
+                                        }
                                       }
                                     };
                                     reader.readAsDataURL(file);
@@ -1527,9 +1539,14 @@ export default function AdminDashboard({ darkMode }: AdminDashboardProps) {
                                   const file = e.target.files?.[0];
                                   if (file) {
                                     const reader = new FileReader();
-                                    reader.onloadend = () => {
+                                    reader.onloadend = async () => {
                                       if (typeof reader.result === "string") {
-                                        setSettings({ ...settings, heroImage: reader.result });
+                                        try {
+                                          const compressed = await compressImage(reader.result, 1200, 800, 0.75);
+                                          setSettings({ ...settings, heroImage: compressed });
+                                        } catch (err) {
+                                          setSettings({ ...settings, heroImage: reader.result });
+                                        }
                                       }
                                     };
                                     reader.readAsDataURL(file);
