@@ -28,7 +28,7 @@ import {
   updateDoc, 
   increment 
 } from "firebase/firestore";
-import { db, DEFAULT_SETTINGS, DEFAULT_PRODUCTS } from "../firebase";
+import { db, DEFAULT_SETTINGS } from "../firebase";
 import { Product, Order, Coupon, Settings, CartItem, OrderStatus } from "../types";
 
 interface StoreFrontProps {
